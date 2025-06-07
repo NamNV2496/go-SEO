@@ -2,6 +2,8 @@ package controller
 
 import (
 	"log/slog"
+	"reflect"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/namnv2496/seo/internal/api"
@@ -15,6 +17,10 @@ type IController interface {
 	UpdateUrl(c echo.Context, req api.UpdateUrlRequest) (*api.UpdateUrlResponse, error)
 	GetUrl(c echo.Context, req api.GetUrlRequest) (*entity.Url, error)
 	GetUrls(c echo.Context, req api.GetUrlsRequest) (*api.GetUrlsResponse, error)
+
+	BuildUrl(c echo.Context, req api.BuildUrlRequest) (*api.BuildUrlResponse, error)
+	ParseUrl(c echo.Context, req api.ParseUrlRequest) (*api.ParseUrlResponse, error)
+	DynamicParamParseByUrl(c echo.Context, req api.DynamicParamRequest) (*api.DynamicParamResponse, error)
 }
 
 type Controller struct {
@@ -77,6 +83,70 @@ func (_self *Controller) GetUrls(c echo.Context, req api.GetUrlsRequest) (*api.G
 		CurrentPage: req.Page,
 		Limit:       req.Limit,
 		Urls:        urls,
+	}
+	return resp, nil
+}
+
+func (_self *Controller) BuildUrl(c echo.Context, req api.BuildUrlRequest) (*api.BuildUrlResponse, error) {
+	ctx := c.Request().Context()
+	params := make(map[string]string)
+	reqVal := reflect.ValueOf(req)
+	for i := 0; i < reqVal.NumField(); i++ {
+		field := reqVal.Type().Field(i)
+		jsonTag := field.Tag.Get("query")
+		if jsonTag == "" {
+			continue
+		}
+		fieldName := strings.Split(jsonTag, ",")[0]
+		fieldValue := reqVal.Field(i).Interface()
+		if fieldValue != "" {
+			params[fieldName] = fieldValue.(string)
+		}
+	}
+	urls, err := _self.urlService.BuildUrl(ctx, req.Kind, params)
+	if err != nil {
+		return nil, err
+	}
+	resp := &api.BuildUrlResponse{
+		Urls: urls,
+	}
+	return resp, nil
+}
+
+func (_self *Controller) ParseUrl(c echo.Context, req api.ParseUrlRequest) (*api.ParseUrlResponse, error) {
+	ctx := c.Request().Context()
+	path := strings.Split(req.Url, "/")
+	numOfPath := len(path)
+	if len(path) == 0 {
+		return nil, nil
+	}
+	urlSeo, err := _self.urlService.ParseUrl(ctx, path[numOfPath-1])
+	if err != nil {
+		return nil, err
+	}
+	return &api.ParseUrlResponse{
+		Uri:         path[numOfPath-1],
+		Path:        "/" + path[numOfPath-1],
+		Tittle:      urlSeo.Tittle,
+		Description: urlSeo.Description,
+	}, nil
+}
+
+func (_self *Controller) DynamicParamParseByUrl(c echo.Context, req api.DynamicParamRequest) (*api.DynamicParamResponse, error) {
+	ctx := c.Request().Context()
+	dynamicParams, err := _self.urlService.DynamicParamParseByUrl(ctx, req.Kind)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]*api.DynamicParamData, 0)
+	for _, dynamicParam := range dynamicParams {
+		data = append(data, &api.DynamicParamData{
+			Label: dynamicParam.Name,
+			Url:   dynamicParam.Value,
+		})
+	}
+	resp := &api.DynamicParamResponse{
+		Data: data,
 	}
 	return resp, nil
 }

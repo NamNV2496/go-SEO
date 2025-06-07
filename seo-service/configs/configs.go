@@ -6,6 +6,7 @@ import (
 
 type Config struct {
 	AppPort        string `env:"APP_PORT" envDefault:"8080"`
+	BuildUrlTool   string `env:"BUILD_URL_TOOL" envDefault:"template"` // template or regex or openai
 	DatabaseConfig DatabaseConfig
 }
 

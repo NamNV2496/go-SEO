@@ -37,7 +37,7 @@ func (_self *UrlRepository) CreateUrl(ctx context.Context, tx *gorm.DB, url doma
 
 func (_self *UrlRepository) GetUrl(ctx context.Context, url string) (*domain.Url, error) {
 	var resp *domain.Url
-	err := _self.db.WithContext(ctx).Where("url = ?", url).Find(&resp).Error
+	err := _self.db.WithContext(ctx).Where("url = ? AND is_active = true", url).Find(&resp).Error
 	if err != nil {
 		return nil, err
 	}

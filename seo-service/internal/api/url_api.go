@@ -29,7 +29,7 @@ type UpdateUrlRequest struct {
 	Template    string                      `query:"template" validate:"required"`
 	Prefix      string                      `query:"prefix"`
 	Suffix      string                      `query:"suffix"`
-	MetaData    []*UpdateUrlRequestMetadata `query:"metadata"`
+	MetaData    []*CreateUrlRequestMetadata `query:"metadata"`
 	Domain      string                      `query:"domain"`
 	IsActive    bool                        `query:"is_active"`
 }
@@ -47,6 +47,46 @@ type UpdateUrlResponse struct {
 
 type GetUrlRequest struct {
 	Url string `query:"url" validate:"required"`
+}
+
+type ParseUrlRequest struct {
+	Url string `query:"url" validate:"required"`
+}
+
+type ParseUrlResponse struct {
+	Uri         string `json:"uri"`
+	Path        string `json:"path"`
+	Tittle      string `json:"tittle"`
+	Description string `json:"description"`
+}
+
+type DynamicParamRequest struct {
+	Kind     string `query:"kind"`
+	Keyword  string `query:"keyword"`
+	Category string `query:"category"`
+}
+
+type DynamicParamResponse struct {
+	Data []*DynamicParamData `json:"data"`
+}
+
+type DynamicParamData struct {
+	Label string `json:"name"`
+	Url   string `json:"value"`
+}
+
+type BuildUrlRequest struct {
+	Kind     string `query:"kind"` // validate:"enum=mua-ban,trao-doi,mua,ban,cho-thue"
+	Location string `query:"location"`
+	Product  string `query:"product"`
+	Category string `query:"category"`
+	Brand    string `query:"brand"`
+	Year     string `query:"year"`
+	Month    string `query:"month"`
+}
+
+type BuildUrlResponse struct {
+	Urls []string `json:"urls"`
 }
 
 type GetUrlsRequest struct {

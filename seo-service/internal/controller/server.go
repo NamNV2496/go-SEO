@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/namnv2496/seo/configs"
-	"github.com/namnv2496/seo/pkg"
+	"github.com/namnv2496/seo/pkg/validate"
 )
 
 func Start(
@@ -22,6 +22,8 @@ func Start(
 	publicGroup.PUT("/url/:id", wrapReponse(urlController.UpdateUrl))
 	publicGroup.GET("/url", wrapReponse(urlController.GetUrl))
 	publicGroup.GET("/urls", wrapReponse(urlController.GetUrls))
+	publicGroup.POST("/url/build", wrapReponse(urlController.BuildUrl))
+	publicGroup.POST("/url/parse", wrapReponse(urlController.ParseUrl))
 
 	if err := e.Start(fmt.Sprintf(":%s", conf.AppPort)); err != nil {
 		e.Logger.Fatal(err)
@@ -32,7 +34,7 @@ func Start(
 
 func newEchoServer() *echo.Echo {
 	e := echo.New()
-	e.Validator = pkg.NewValidator()
+	e.Validator = validate.NewValidator()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
