@@ -24,6 +24,7 @@ func Start(
 	publicGroup.GET("/urls", wrapReponse(urlController.GetUrls))
 	publicGroup.POST("/url/build", wrapReponse(urlController.BuildUrl))
 	publicGroup.POST("/url/parse", wrapReponse(urlController.ParseUrl))
+	publicGroup.POST("/url/dynamic_keyword", wrapReponse(urlController.DynamicParamParseByUrl))
 
 	if err := e.Start(fmt.Sprintf(":%s", conf.AppPort)); err != nil {
 		e.Logger.Fatal(err)

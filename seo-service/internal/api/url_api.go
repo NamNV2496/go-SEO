@@ -62,22 +62,31 @@ type ParseUrlResponse struct {
 
 type DynamicParamRequest struct {
 	Kind     string `query:"kind"`
-	Keyword  string `query:"keyword"`
 	Category string `query:"category"`
+	City     string `query:"city"`
+	Product  string `query:"product"`
+	Brand    string `query:"brand"`
+	Year     string `query:"year"`
 }
 
 type DynamicParamResponse struct {
-	Data []*DynamicParamData `json:"data"`
+	Data []*DynamicParamGroup `json:"data"`
 }
 
+type DynamicParamGroup struct {
+	Group string              `json:"group"`
+	Total int                 `json:"total"`
+	Data  []*DynamicParamData `json:"data"`
+}
 type DynamicParamData struct {
-	Label string `json:"name"`
-	Url   string `json:"value"`
+	Tittle string `json:"tittle"`
+	Uri    string `json:"uri"`
 }
 
 type BuildUrlRequest struct {
+	Type     string `query:"type"`
 	Kind     string `query:"kind"` // validate:"enum=mua-ban,trao-doi,mua,ban,cho-thue"
-	Location string `query:"location"`
+	City     string `query:"city"`
 	Product  string `query:"product"`
 	Category string `query:"category"`
 	Brand    string `query:"brand"`

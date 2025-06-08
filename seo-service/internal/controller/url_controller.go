@@ -89,20 +89,7 @@ func (_self *Controller) GetUrls(c echo.Context, req api.GetUrlsRequest) (*api.G
 
 func (_self *Controller) BuildUrl(c echo.Context, req api.BuildUrlRequest) (*api.BuildUrlResponse, error) {
 	ctx := c.Request().Context()
-	params := make(map[string]string)
-	reqVal := reflect.ValueOf(req)
-	for i := 0; i < reqVal.NumField(); i++ {
-		field := reqVal.Type().Field(i)
-		jsonTag := field.Tag.Get("query")
-		if jsonTag == "" {
-			continue
-		}
-		fieldName := strings.Split(jsonTag, ",")[0]
-		fieldValue := reqVal.Field(i).Interface()
-		if fieldValue != "" {
-			params[fieldName] = fieldValue.(string)
-		}
-	}
+	params := requestToMap(req)
 	urls, err := _self.urlService.BuildUrl(ctx, req.Kind, params)
 	if err != nil {
 		return nil, err
@@ -134,19 +121,57 @@ func (_self *Controller) ParseUrl(c echo.Context, req api.ParseUrlRequest) (*api
 
 func (_self *Controller) DynamicParamParseByUrl(c echo.Context, req api.DynamicParamRequest) (*api.DynamicParamResponse, error) {
 	ctx := c.Request().Context()
-	dynamicParams, err := _self.urlService.DynamicParamParseByUrl(ctx, req.Kind)
+	params := requestToMap(req)
+	dynamicRecommendGroup, err := _self.urlService.DynamicRecommendParseByUrl(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	data := make([]*api.DynamicParamData, 0)
-	for _, dynamicParam := range dynamicParams {
-		data = append(data, &api.DynamicParamData{
-			Label: dynamicParam.Name,
-			Url:   dynamicParam.Value,
-		})
+	uris := make(map[string]bool, 0)
+	dataGroup := make([]*api.DynamicParamGroup, 0)
+	for _, dynamicRecommend := range dynamicRecommendGroup.Data {
+		shortLinks := make([]*api.DynamicParamData, 0)
+		total := 0
+		for _, shortLink := range dynamicRecommend.Data {
+			if _, exist := uris[shortLink.Uri]; exist {
+				continue
+			}
+			shortLinks = append(shortLinks, &api.DynamicParamData{
+				Tittle: shortLink.Tittle,
+				Uri:    shortLink.Uri,
+			})
+			uris[shortLink.Uri] = true
+			total += 1
+		}
+		if total == 0 {
+			continue
+		}
+		detail := &api.DynamicParamGroup{
+			Group: dynamicRecommend.Group,
+			Total: total,
+			Data:  shortLinks,
+		}
+		dataGroup = append(dataGroup, detail)
 	}
-	resp := &api.DynamicParamResponse{
-		Data: data,
+
+	return &api.DynamicParamResponse{
+		Data: dataGroup,
+	}, nil
+}
+
+func requestToMap(req interface{}) map[string]string {
+	params := make(map[string]string)
+	reqVal := reflect.ValueOf(req)
+	for i := 0; i < reqVal.NumField(); i++ {
+		field := reqVal.Type().Field(i)
+		jsonTag := field.Tag.Get("query")
+		if jsonTag == "" {
+			continue
+		}
+		fieldName := strings.Split(jsonTag, ",")[0]
+		fieldValue := reqVal.Field(i).Interface()
+		if fieldValue != "" {
+			params[fieldName] = fieldValue.(string)
+		}
 	}
-	return resp, nil
+	return params
 }

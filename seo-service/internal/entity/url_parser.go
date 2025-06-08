@@ -8,15 +8,10 @@ const (
 	UrlTemplateSell     = "ban"
 	UrlTemplateRent     = "cho-thue"
 	// kind seo data
-	UrlKindLocation = "localtion"
+	UrlKindCity     = "city"
 	UrlKindProduct  = "product"
 	UrlKindCategory = "category"
 	UrlKindBrand    = "brand"
 	UrlKindYear     = "year"
 	UrlKindMonth    = "month"
 )
-
-type DynamicParam struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}

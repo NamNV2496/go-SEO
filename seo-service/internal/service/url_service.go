@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/namnv2496/seo/configs"
 	"github.com/namnv2496/seo/internal/domain"
 	"github.com/namnv2496/seo/internal/entity"
 	"github.com/namnv2496/seo/internal/repository"
+	"github.com/namnv2496/seo/internal/service/urlbuilderfactory"
 	"github.com/namnv2496/seo/pkg/utils"
 	"gorm.io/gorm"
 )
@@ -18,7 +18,7 @@ import (
 type IUrlService interface {
 	ParseUrl(ctx context.Context, url string) (*entity.Url, error)
 	BuildUrl(ctx context.Context, kind string, request map[string]string) ([]string, error)
-	DynamicParamParseByUrl(ctx context.Context, url string) ([]*entity.DynamicParam, error)
+	DynamicRecommendParseByUrl(ctx context.Context, request map[string]string) (*entity.DynamicRecommend, error)
 
 	CreateUrl(ctx context.Context, url entity.Url) error
 	UpdateUrl(ctx context.Context, url entity.Url) error
@@ -31,20 +31,20 @@ type UrlService struct {
 	db              repository.IDatabase
 	urlRepo         repository.IUrlRepository
 	urlMetadataRepo repository.IUrlMetadataRepository
-	buildUrlTool    string
+	shortlinkRepo   repository.IShortLinkRepository
 }
 
 func NewUrlService(
-	conf *configs.Config,
 	db repository.IDatabase,
 	urlRepo repository.IUrlRepository,
 	urlMetadataRepo repository.IUrlMetadataRepository,
+	shortlinkRepo repository.IShortLinkRepository,
 ) *UrlService {
 	return &UrlService{
 		db:              db,
 		urlRepo:         urlRepo,
 		urlMetadataRepo: urlMetadataRepo,
-		buildUrlTool:    conf.BuildUrlTool,
+		shortlinkRepo:   shortlinkRepo,
 	}
 }
 
@@ -75,14 +75,14 @@ func (_self *UrlService) ParseUrl(ctx context.Context, url string) (*entity.Url,
 		}
 		resp.Metadata = metadataEntity
 	}
-	resp.Tittle, _ = utils.BuildByTemplate(ctx, "build-tittle", urlData.Template, params)
-	resp.Description, _ = utils.BuildByTemplate(ctx, "build-description", urlData.Template, params)
+	resp.Tittle, _ = utils.BuildByTemplate(ctx, "build-tittle", urlData.Tittle, params)
+	resp.Description, _ = utils.BuildByTemplate(ctx, "build-description", urlData.Description, params)
 	return resp, nil
 }
 
 func (_self *UrlService) BuildUrl(ctx context.Context, kind string, request map[string]string) ([]string, error) {
 	// TBU: ==================== Intergrate AI to build ====================
-	switch _self.buildUrlTool {
+	switch request["type"] {
 	case "ai":
 		return buildUrlByAI(ctx, kind, request)
 	case "template":
@@ -129,9 +129,10 @@ func (_self *UrlService) buildUrlByTemplate(ctx context.Context, kind string, re
 
 func buildUrlByRegex(ctx context.Context, kind string, request map[string]string) ([]string, error) {
 	var templates = []string{
-		"{kind}-{location}-{category}-{product}-{brand}",
+		"{kind}-{category}-{product}-{brand}-{city}",
 		"{kind}-{category}-{product}",
-		"{kind}-{location}-{product}",
+		"{kind}-{product}-{city}",
+		"{kind}-{category}-{city}",
 		"{kind}-{category}-{brand}-{product}",
 		"{kind}-{category}-{year}-{month}",
 		"{kind}-{product}",
@@ -170,8 +171,108 @@ func extractor(template string) []string {
 	return fields
 }
 
-func (_self *UrlService) DynamicParamParseByUrl(ctx context.Context, url string) ([]*entity.DynamicParam, error) {
-	return nil, nil
+func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request map[string]string) (*entity.DynamicRecommend, error) {
+	dataGroup := make([]*entity.DynamicRecommendGroup, 0)
+	// city
+	cityBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCity, _self.db.GetDB())
+	if err == nil {
+		cities, recoErr := cityBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
+			{
+				Field: "city",
+				And:   true,
+			},
+			{
+				Field: "category",
+				And:   true,
+			},
+		})
+		if recoErr == nil && len(cities) > 0 {
+			citiesGroup := &entity.DynamicRecommendGroup{
+				Group: "Gợi ý cùng thành phố",
+				Data:  cities,
+			}
+			dataGroup = append(dataGroup, citiesGroup)
+		}
+	}
+	// product
+	productBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindProduct, _self.db.GetDB())
+	if err == nil {
+		products, recoErr := productBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
+			{
+				Field: "product",
+				And:   true,
+			},
+		})
+		if recoErr == nil && len(products) > 0 {
+			productGroup := &entity.DynamicRecommendGroup{
+				Group: "Gợi ý cùng sản phẩm",
+				Data:  products,
+			}
+			dataGroup = append(dataGroup, productGroup)
+		}
+	}
+	// category
+	categoryBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCategory, _self.db.GetDB())
+	if err == nil {
+		categories, recoErr := categoryBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
+			{
+				Field: "category",
+				And:   true,
+			},
+		})
+		if recoErr == nil && len(categories) > 0 {
+			categoryGroup := &entity.DynamicRecommendGroup{
+				Group: "Gợi ý cùng danh mục",
+				Data:  categories,
+			}
+			dataGroup = append(dataGroup, categoryGroup)
+		}
+	}
+	// brand
+	brandBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindBrand, _self.db.GetDB())
+	if err == nil {
+		brands, recoErr := brandBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
+			{
+				Field: "brand",
+				And:   true,
+			},
+		})
+		if recoErr == nil && len(brands) > 0 {
+			brandGroup := &entity.DynamicRecommendGroup{
+				Group: "Gợi ý cùng nhãn hiệu",
+				Data:  brands,
+			}
+			dataGroup = append(dataGroup, brandGroup)
+		}
+	}
+	// year
+	yearBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindYear, _self.db.GetDB())
+	if err == nil {
+		years, recoErr := yearBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
+			{
+				Field: "city",
+				And:   false,
+			},
+			{
+				Field: "category",
+				And:   true,
+			},
+			{
+				Field: "year",
+				And:   true,
+			},
+		})
+		if recoErr == nil && len(years) > 0 {
+			yearGroup := &entity.DynamicRecommendGroup{
+				Group: "Gợi ý cùng năm sản xuất",
+				Data:  years,
+			}
+			dataGroup = append(dataGroup, yearGroup)
+		}
+	}
+	return &entity.DynamicRecommend{
+		Data: dataGroup,
+	}, nil
 }
 
 func (_self *UrlService) CreateUrl(ctx context.Context, url entity.Url) error {

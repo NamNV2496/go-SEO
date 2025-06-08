@@ -7,6 +7,6 @@ func Execute() error {
 		Short: "A simple web seo",
 	}
 	rootCmd.AddCommand(serverCmd)
-	// rootCmd.AddCommand(CrawlerWorkerCmd)
+	rootCmd.AddCommand(DynamicKeywordCmd)
 	return rootCmd.Execute()
 }

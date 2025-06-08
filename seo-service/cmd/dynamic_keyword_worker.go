@@ -9,15 +9,15 @@ import (
 	"go.uber.org/fx"
 )
 
-var CrawlerWorkerCmd = &cobra.Command{
-	Use:   "crawler-worker",
-	Short: "A simple web crawler worker",
+var DynamicKeywordCmd = &cobra.Command{
+	Use:   "dynamic_keyword_worker",
+	Short: "A simple web dynamic keyword worker",
 	Run: func(cmd *cobra.Command, args []string) {
-		InvokeCrawlerWorker(startCrawlerWorker)
+		InvokeDynamicKeyword(startDynamicKeyword)
 	},
 }
 
-func InvokeCrawlerWorker(invokers ...any) *fx.App {
+func InvokeDynamicKeyword(invokers ...any) *fx.App {
 	config := configs.LoadConfig()
 	app := fx.New(
 		fx.StartTimeout(time.Second*10),
@@ -31,10 +31,10 @@ func InvokeCrawlerWorker(invokers ...any) *fx.App {
 	return app
 }
 
-func startCrawlerWorker(
+func startDynamicKeyword(
 	lc fx.Lifecycle,
 	config *configs.Config,
 ) {
-	log.Println("Start consumer")
+	log.Println("Start consumer to update keyword by cron job. It will develop soon")
 	select {}
 }
