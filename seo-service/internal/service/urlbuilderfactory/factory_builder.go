@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/namnv2496/seo/internal/entity"
-	"gorm.io/gorm"
+	"github.com/namnv2496/seo/internal/repository"
 )
 
 type QueryOption struct {
@@ -19,28 +19,28 @@ type IBuilder interface {
 
 func BuilderFactory(
 	kind string,
-	db *gorm.DB,
+	repo repository.IShortLinkRepo,
 ) (IBuilder, error) {
 	switch kind {
 	case entity.UrlKindCity:
 		return &CityBuilder{
-			Db: db,
+			repo: repo,
 		}, nil
 	case entity.UrlKindProduct:
 		return &ProductBuilder{
-			Db: db,
+			repo: repo,
 		}, nil
 	case entity.UrlKindCategory:
 		return &CategoryBuilder{
-			Db: db,
+			repo: repo,
 		}, nil
 	case entity.UrlKindBrand:
 		return &BrandBuilder{
-			Db: db,
+			repo: repo,
 		}, nil
 	case entity.UrlKindYear:
 		return &YearBuilder{
-			Db: db,
+			repo: repo,
 		}, nil
 	default:
 		return nil, nil

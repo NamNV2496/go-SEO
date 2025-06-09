@@ -5,29 +5,39 @@ import (
 
 	"github.com/namnv2496/seo/internal/domain"
 	"github.com/namnv2496/seo/internal/entity"
+	"github.com/namnv2496/seo/internal/repository"
 	"github.com/namnv2496/seo/pkg/utils"
-	"gorm.io/gorm"
 )
 
 type CityBuilder struct {
-	Db *gorm.DB
+	repo repository.IShortLinkRepo
 }
 
 func NewCityBuilder(
-	db *gorm.DB,
+	repo repository.IShortLinkRepo,
 ) *CityBuilder {
 	return &CityBuilder{
-		Db: db,
+		repo: repo,
 	}
 }
 
 var _ IBuilder = &CityBuilder{}
 
 func (_self *CityBuilder) Build(ctx context.Context, request map[string]string) ([]*entity.ShortLink, error) {
-	resp := []*entity.ShortLink{}
-	err := _self.Db.Model(&domain.ShortLink{}).Where("filter ->> 'city' = ?", request["city"]).Offset(0).Limit(5).Find(&resp).Error
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithCondition("filter ->> 'city' = ?", request["city"]))
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
+
+	result, err := _self.repo.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
+	}
+	var resp []*entity.ShortLink
+	for _, shortLink := range result {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
 	}
 	return resp, nil
 }
@@ -35,27 +45,29 @@ func (_self *CityBuilder) Build(ctx context.Context, request map[string]string) 
 func (_self *CityBuilder) BuildRecommend(ctx context.Context, request map[string]string, fields []QueryOption) ([]*entity.ShortLink, error) {
 	var resp []*entity.ShortLink
 	var data []*domain.ShortLink
-	// TBU: use AI to recommend next cities
-	// var nextCities []*entity.ShortLink
+	// find the same city name
 	city := request["city"]
 	if city == "" {
 		return nil, nil
 	}
-	tx := _self.Db.Model(&domain.ShortLink{})
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
 	for _, field := range fields {
 		if field.And {
-			tx = tx.Where("filter->>'"+field.Field+"' =?", request[field.Field])
+			opts = append(opts, repository.WithCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
 		} else {
-			tx = tx.Or("filter->>'"+field.Field+"' =?", request[field.Field])
+			opts = append(opts, repository.WithOrCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
 		}
 	}
-	if err := tx.
-		Offset(0).
-		Limit(5).
-		Find(&data).Error; err != nil {
+	data, err := _self.repo.Finds(ctx, opts...)
+	if err != nil {
 		return nil, err
 	}
-
-	utils.Copy(&resp, data)
+	for _, shortLink := range data {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
+	}
 	return resp, nil
 }

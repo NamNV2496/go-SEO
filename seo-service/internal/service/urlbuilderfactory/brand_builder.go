@@ -5,55 +5,69 @@ import (
 
 	"github.com/namnv2496/seo/internal/domain"
 	"github.com/namnv2496/seo/internal/entity"
+	"github.com/namnv2496/seo/internal/repository"
 	"github.com/namnv2496/seo/pkg/utils"
-	"gorm.io/gorm"
 )
 
-type BrandBuilder struct {
-	Db *gorm.DB
+type CategoryBuilder struct {
+	repo repository.IShortLinkRepo
 }
 
-func NewBrandBuilder(
-	db *gorm.DB,
-) *BrandBuilder {
-	return &BrandBuilder{
-		Db: db,
+func NewCategoryBuilder(
+	repo repository.IShortLinkRepo,
+) *CategoryBuilder {
+	return &CategoryBuilder{
+		repo: repo,
 	}
 }
 
-var _ IBuilder = &BrandBuilder{}
+var _ IBuilder = &CategoryBuilder{}
 
-func (_self *BrandBuilder) Build(ctx context.Context, request map[string]string) ([]*entity.ShortLink, error) {
-	resp := []*entity.ShortLink{}
-	err := _self.Db.Model(&domain.ShortLink{}).Where("filter ->> 'brand' = ?", request["brand"]).Offset(0).Limit(5).Find(&resp).Error
+func (_self *CategoryBuilder) Build(ctx context.Context, request map[string]string) ([]*entity.ShortLink, error) {
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithCondition("filter ->> 'category' = ?", request["category"]))
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
+
+	result, err := _self.repo.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
+	}
+	var resp []*entity.ShortLink
+	for _, shortLink := range result {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
 	}
 	return resp, nil
 }
 
-func (_self *BrandBuilder) BuildRecommend(ctx context.Context, request map[string]string, fields []QueryOption) ([]*entity.ShortLink, error) {
+func (_self *CategoryBuilder) BuildRecommend(ctx context.Context, request map[string]string, fields []QueryOption) ([]*entity.ShortLink, error) {
 	var resp []*entity.ShortLink
 	var data []*domain.ShortLink
-	// find the same brand name
-	brand := request["brand"]
-	if brand == "" {
+	// find the same category name
+	category := request["category"]
+	if category == "" {
 		return nil, nil
 	}
-	tx := _self.Db.Model(&domain.ShortLink{})
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
 	for _, field := range fields {
 		if field.And {
-			tx = tx.Where("filter->>'"+field.Field+"' =?", request[field.Field])
+			opts = append(opts, repository.WithCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
 		} else {
-			tx = tx.Or("filter->>'"+field.Field+"' =?", request[field.Field])
+			opts = append(opts, repository.WithOrCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
 		}
 	}
-	if err := tx.
-		Offset(0).
-		Limit(5).
-		Find(&data).Error; err != nil {
+	data, err := _self.repo.Finds(ctx, opts...)
+	if err != nil {
 		return nil, err
 	}
-	utils.Copy(&resp, data)
+	for _, shortLink := range data {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
+	}
 	return resp, nil
 }

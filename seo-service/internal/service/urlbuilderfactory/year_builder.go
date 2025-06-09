@@ -2,63 +2,72 @@ package urlbuilderfactory
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/namnv2496/seo/internal/domain"
 	"github.com/namnv2496/seo/internal/entity"
-	"gorm.io/gorm"
+	"github.com/namnv2496/seo/internal/repository"
+	"github.com/namnv2496/seo/pkg/utils"
 )
 
 type YearBuilder struct {
-	Db *gorm.DB
+	repo repository.IShortLinkRepo
 }
 
 func NewYearBuilder(
-	db *gorm.DB,
+	repo repository.IShortLinkRepo,
 ) *YearBuilder {
 	return &YearBuilder{
-		Db: db,
+		repo: repo,
 	}
 }
 
 var _ IBuilder = &YearBuilder{}
 
 func (_self *YearBuilder) Build(ctx context.Context, request map[string]string) ([]*entity.ShortLink, error) {
-	resp := []*entity.ShortLink{}
-	err := _self.Db.Model(&domain.ShortLink{}).Where("filter -> year = ?", request["year"]).Offset(0).Limit(5).Find(&resp).Error
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithCondition("filter ->> 'year' = ?", request["year"]))
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
+
+	result, err := _self.repo.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
+	}
+	var resp []*entity.ShortLink
+	for _, shortLink := range result {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
 	}
 	return resp, nil
 }
 
 func (_self *YearBuilder) BuildRecommend(ctx context.Context, request map[string]string, fields []QueryOption) ([]*entity.ShortLink, error) {
 	var resp []*entity.ShortLink
-	var nextYears []*entity.ShortLink
-	var PrevYears []*entity.ShortLink
-	yearText := request["year"]
-	if yearText == "" {
+	var data []*domain.ShortLink
+	// find the same year name
+	year := request["year"]
+	if year == "" {
 		return nil, nil
 	}
-	var err error
-	var year int64
-	year, err = strconv.ParseInt(yearText, 10, 64)
+	var opts []repository.QueryOptionFunc
+	opts = append(opts, repository.WithOffset(0))
+	opts = append(opts, repository.WithLimit(5))
+	for _, field := range fields {
+		if field.And {
+			opts = append(opts, repository.WithCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
+		} else {
+			opts = append(opts, repository.WithOrCondition("filter->>'"+field.Field+"' =?", request[field.Field]))
+		}
+	}
+	data, err := _self.repo.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	// find next years
-	err = _self.Db.Model(&domain.ShortLink{}).Where("filter ->> 'year' = ?", fmt.Sprintf("%d", year+1)).Offset(0).Limit(5).Find(&nextYears).Error
-	if err != nil {
-		return nil, err
+	for _, shortLink := range data {
+		var elem *entity.ShortLink
+		utils.Copy(&elem, shortLink)
+		resp = append(resp, elem)
 	}
-	// find prev years
-	err = _self.Db.Model(&domain.ShortLink{}).Where("filter ->> 'year' = ?", fmt.Sprintf("%d", year-1)).Offset(0).Limit(5).Find(&PrevYears).Error
-	if err != nil {
-		return nil, err
-	}
-
-	resp = append(resp, nextYears...)
-	resp = append(resp, PrevYears...)
 	return resp, nil
 }

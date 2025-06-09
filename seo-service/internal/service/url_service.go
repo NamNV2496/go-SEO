@@ -174,7 +174,7 @@ func extractor(template string) []string {
 func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request map[string]string) (*entity.DynamicRecommend, error) {
 	dataGroup := make([]*entity.DynamicRecommendGroup, 0)
 	// city
-	cityBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCity, _self.db.GetDB())
+	cityBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCity, _self.shortlinkRepo)
 	if err == nil {
 		cities, recoErr := cityBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
 			{
@@ -195,7 +195,7 @@ func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request
 		}
 	}
 	// product
-	productBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindProduct, _self.db.GetDB())
+	productBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindProduct, _self.shortlinkRepo)
 	if err == nil {
 		products, recoErr := productBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
 			{
@@ -212,7 +212,7 @@ func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request
 		}
 	}
 	// category
-	categoryBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCategory, _self.db.GetDB())
+	categoryBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindCategory, _self.shortlinkRepo)
 	if err == nil {
 		categories, recoErr := categoryBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
 			{
@@ -229,7 +229,7 @@ func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request
 		}
 	}
 	// brand
-	brandBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindBrand, _self.db.GetDB())
+	brandBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindBrand, _self.shortlinkRepo)
 	if err == nil {
 		brands, recoErr := brandBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
 			{
@@ -246,7 +246,7 @@ func (_self *UrlService) DynamicRecommendParseByUrl(ctx context.Context, request
 		}
 	}
 	// year
-	yearBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindYear, _self.db.GetDB())
+	yearBuilder, err := urlbuilderfactory.BuilderFactory(entity.UrlKindYear, _self.shortlinkRepo)
 	if err == nil {
 		years, recoErr := yearBuilder.BuildRecommend(ctx, request, []urlbuilderfactory.QueryOption{
 			{

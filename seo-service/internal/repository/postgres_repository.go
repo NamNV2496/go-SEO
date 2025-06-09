@@ -160,3 +160,9 @@ func WithCondition(condition string, args ...any) QueryOptionFunc {
 		return tx.Where(condition, args...)
 	}
 }
+
+func WithOrCondition(condition string, args ...any) QueryOptionFunc {
+	return func(tx *gorm.DB) *gorm.DB {
+		return tx.Or(condition, args...)
+	}
+}
