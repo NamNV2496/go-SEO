@@ -7,40 +7,44 @@ import (
 	"gorm.io/gorm"
 )
 
-type IShortLinkRepository interface {
+type IShortLinkRepo interface {
+	IRepository[domain.ShortLink]
 	GetShortLinks(ctx context.Context, offset, limit int, request map[string]string) ([]*domain.ShortLink, error)
 }
 
-type ShortLinkRepository struct {
-	db *gorm.DB
+type ShortLinkRepo struct {
+	baseRepository[domain.ShortLink]
 }
 
-func NewShortLinkRepository(
+func NewShortLinkRepo(
 	database IDatabase,
-) *ShortLinkRepository {
+) *ShortLinkRepo {
 	database.GetDB().AutoMigrate(&domain.ShortLink{})
-	return &ShortLinkRepository{
-		db: database.GetDB(),
+	return &ShortLinkRepo{
+		baseRepository: newBaseRepository[domain.ShortLink](database.GetDB()),
 	}
 }
 
-var _ IShortLinkRepository = &ShortLinkRepository{}
+var _ IShortLinkRepo = &ShortLinkRepo{}
 
-func (_self *ShortLinkRepository) GetShortLinks(ctx context.Context, offset, limit int, request map[string]string) ([]*domain.ShortLink, error) {
-	var urlData []*domain.ShortLink
-	tx := _self.db.WithContext(ctx)
+func (_self *ShortLinkRepo) GetShortLinks(ctx context.Context, offset, limit int, request map[string]string) ([]*domain.ShortLink, error) {
+	opts := make([]QueryOptionFunc, 0)
 	// dynamic filter
 	for field, value := range request {
-		tx = tx.Where(field, value)
+		opts = append(opts, func(db *gorm.DB) *gorm.DB {
+			return db.Where(field+" = ?", value)
+		})
 	}
-	var err error
 	if offset > 0 && limit > 0 {
-		err = tx.Offset(offset).Limit(limit).Find(&urlData).Error
+		opts = append(opts, WithOffset(offset))
+		opts = append(opts, WithLimit(limit))
 	} else {
-		err = tx.Find(&urlData).Error
+		opts = append(opts, WithLimit(20))
+		opts = append(opts, WithOffset(0))
 	}
+	urls, err := _self.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return urlData, nil
+	return urls, nil
 }

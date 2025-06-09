@@ -29,16 +29,16 @@ type IUrlService interface {
 
 type UrlService struct {
 	db              repository.IDatabase
-	urlRepo         repository.IUrlRepository
-	urlMetadataRepo repository.IUrlMetadataRepository
-	shortlinkRepo   repository.IShortLinkRepository
+	urlRepo         repository.IUrlRepo
+	urlMetadataRepo repository.IUrlMetadataRepo
+	shortlinkRepo   repository.IShortLinkRepo
 }
 
 func NewUrlService(
 	db repository.IDatabase,
-	urlRepo repository.IUrlRepository,
-	urlMetadataRepo repository.IUrlMetadataRepository,
-	shortlinkRepo repository.IShortLinkRepository,
+	urlRepo repository.IUrlRepo,
+	urlMetadataRepo repository.IUrlMetadataRepo,
+	shortlinkRepo repository.IShortLinkRepo,
 ) *UrlService {
 	return &UrlService{
 		db:              db,

@@ -16,6 +16,6 @@ type ShortLink struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
-func (u *ShortLink) TableName() string {
+func (u ShortLink) TableName() string {
 	return "short_link"
 }

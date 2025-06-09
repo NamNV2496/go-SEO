@@ -7,6 +7,6 @@ type UrlMetadata struct {
 	Value   string `gorm:"column:value" json:"value"`
 }
 
-func (_self *UrlMetadata) TableName() string {
+func (_self UrlMetadata) TableName() string {
 	return "url_metadata"
 }

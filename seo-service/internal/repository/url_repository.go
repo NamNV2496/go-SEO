@@ -7,7 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-type IUrlRepository interface {
+type IUrlRepo interface {
+	IRepository[domain.Url]
 	CreateUrl(ctx context.Context, tx *gorm.DB, url domain.Url) (int64, error)
 	GetUrl(ctx context.Context, url string) (*domain.Url, error)
 	GetUrls(ctx context.Context, offset, limit int) ([]*domain.Url, error)
@@ -15,53 +16,54 @@ type IUrlRepository interface {
 	DeleteUrl(ctx context.Context, tx *gorm.DB, url string) error
 }
 
-type UrlRepository struct {
-	db *gorm.DB
+type UrlRepo struct {
+	baseRepository[domain.Url]
 }
 
-func NewUrlRepository(
+func NewUrlRepo(
 	database IDatabase,
-) *UrlRepository {
+) *UrlRepo {
 	database.GetDB().AutoMigrate(&domain.Url{})
-	return &UrlRepository{
-		db: database.GetDB(),
+	return &UrlRepo{
+		baseRepository: newBaseRepository[domain.Url](database.GetDB()),
 	}
 }
 
-var _ IUrlRepository = &UrlRepository{}
+var _ IUrlRepo = &UrlRepo{}
 
-func (_self *UrlRepository) CreateUrl(ctx context.Context, tx *gorm.DB, url domain.Url) (int64, error) {
-	tx.Create(&url)
-	return url.Id, nil
+func (_self *UrlRepo) CreateUrl(ctx context.Context, tx *gorm.DB, url domain.Url) (int64, error) {
+	err := _self.InsertOnce(ctx, url)
+	return url.Id, err
 }
 
-func (_self *UrlRepository) GetUrl(ctx context.Context, url string) (*domain.Url, error) {
-	var resp *domain.Url
-	err := _self.db.WithContext(ctx).Where("url = ? AND is_active = true", url).Find(&resp).Error
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (_self *UrlRepo) GetUrl(ctx context.Context, url string) (*domain.Url, error) {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("url =?", url))
+	opts = append(opts, WithCondition("is_active = true"))
+	return _self.Find(ctx, opts...)
 }
 
-func (_self *UrlRepository) GetUrls(ctx context.Context, offset, limit int) ([]*domain.Url, error) {
-	var urlData []*domain.Url
-	var err error
-	if offset > 0 && limit > 0 {
-		err = _self.db.WithContext(ctx).Offset(offset).Limit(limit).Find(&urlData).Error
-	} else {
-		err = _self.db.WithContext(ctx).Find(&urlData).Error
-	}
+func (_self *UrlRepo) GetUrls(ctx context.Context, offset, limit int) ([]*domain.Url, error) {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("is_active = true"))
+	opts = append(opts, WithOffset(offset))
+	opts = append(opts, WithLimit(limit))
+
+	urlData, err := _self.Finds(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return urlData, nil
 }
 
-func (_self *UrlRepository) UpdateUrl(ctx context.Context, tx *gorm.DB, url domain.Url) error {
-	return tx.Model(&url).Updates(url).Error
+func (_self *UrlRepo) UpdateUrl(ctx context.Context, tx *gorm.DB, url domain.Url) error {
+	return _self.UpdateOnce(ctx, url)
 }
 
-func (_self *UrlRepository) DeleteUrl(ctx context.Context, tx *gorm.DB, url string) error {
-	return tx.Where("url = ?", url).Delete(&domain.Url{}).Error
+func (_self *UrlRepo) DeleteUrl(ctx context.Context, tx *gorm.DB, url string) error {
+	var opts []QueryOptionFunc
+	opts = append(opts, func(db *gorm.DB) *gorm.DB {
+		return db.Where("url = ?", url)
+	})
+	return _self.DeleteOnce(ctx, domain.Url{}, opts...)
 }

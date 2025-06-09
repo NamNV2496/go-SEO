@@ -27,9 +27,10 @@ func InvokeServer(invokers ...any) *fx.App {
 		fx.Provide(
 			// repository
 			fx.Annotate(repository.NewDatabase, fx.As(new(repository.IDatabase))),
-			fx.Annotate(repository.NewUrlRepository, fx.As(new(repository.IUrlRepository))),
-			fx.Annotate(repository.NewUrlMetadataRepository, fx.As(new(repository.IUrlMetadataRepository))),
-			fx.Annotate(repository.NewShortLinkRepository, fx.As(new(repository.IShortLinkRepository))),
+			// fx.Annotate(repository.NewUrlRepository, fx.As(new(repository.IUrlRepository))),
+			fx.Annotate(repository.NewUrlRepo, fx.As(new(repository.IUrlRepo))),
+			fx.Annotate(repository.NewUrlMetadataRepo, fx.As(new(repository.IUrlMetadataRepo))),
+			fx.Annotate(repository.NewShortLinkRepo, fx.As(new(repository.IShortLinkRepo))),
 			// service
 			fx.Annotate(service.NewUrlService, fx.As(new(service.IUrlService))),
 			// controller

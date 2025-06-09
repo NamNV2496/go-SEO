@@ -13,7 +13,7 @@ import (
 )
 
 type IController interface {
-	CreateNewUrl(c echo.Context, req api.CreateUrlRequest) error
+	CreateNewUrl(c echo.Context, req api.CreateUrlRequest) (string, error)
 	UpdateUrl(c echo.Context, req api.UpdateUrlRequest) (*api.UpdateUrlResponse, error)
 	GetUrl(c echo.Context, req api.GetUrlRequest) (*entity.Url, error)
 	GetUrls(c echo.Context, req api.GetUrlsRequest) (*api.GetUrlsResponse, error)
@@ -37,17 +37,17 @@ func NewUrlController(
 
 var _ IController = &Controller{}
 
-func (_self *Controller) CreateNewUrl(c echo.Context, req api.CreateUrlRequest) error {
+func (_self *Controller) CreateNewUrl(c echo.Context, req api.CreateUrlRequest) (string, error) {
 	slog.Info("CreateNewUrl", "req", req)
 	ctx := c.Request().Context()
 	var request entity.Url
 	utils.Copy(&request, req)
 	err := _self.urlService.CreateUrl(ctx, request)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return "success", nil
 }
 
 func (_self *Controller) UpdateUrl(c echo.Context, req api.UpdateUrlRequest) (*api.UpdateUrlResponse, error) {

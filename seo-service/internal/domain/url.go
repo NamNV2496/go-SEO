@@ -19,6 +19,6 @@ type Url struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
-func (u *Url) TableName() string {
+func (u Url) TableName() string {
 	return "url"
 }

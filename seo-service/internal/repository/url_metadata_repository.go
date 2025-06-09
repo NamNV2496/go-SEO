@@ -7,7 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-type IUrlMetadataRepository interface {
+type IUrlMetadataRepo interface {
+	IRepository[domain.UrlMetadata]
 	CreateUrlMetadata(ctx context.Context, tx *gorm.DB, urlMetadata []*domain.UrlMetadata) error
 	GetUrlMetadata(ctx context.Context, urlId int64) ([]*domain.UrlMetadata, error)
 	GetUrlMetadatas(ctx context.Context, urlIds []int64) ([]*domain.UrlMetadata, error)
@@ -15,47 +16,45 @@ type IUrlMetadataRepository interface {
 	DeleteUrlMetadataById(ctx context.Context, tx *gorm.DB, urlId int64) error
 }
 
-type UrlMetadataRepository struct {
-	db *gorm.DB
+type UrlMetadataRepo struct {
+	baseRepository[domain.UrlMetadata]
 }
 
-func NewUrlMetadataRepository(
+func NewUrlMetadataRepo(
 	database IDatabase,
-) *UrlMetadataRepository {
+) *UrlMetadataRepo {
 	database.GetDB().AutoMigrate(&domain.UrlMetadata{})
-	return &UrlMetadataRepository{
-		db: database.GetDB(),
+	return &UrlMetadataRepo{
+		baseRepository: baseRepository[domain.UrlMetadata]{
+			db: database.GetDB(),
+		},
 	}
 }
 
-var _ IUrlMetadataRepository = &UrlMetadataRepository{}
+var _ IUrlMetadataRepo = &UrlMetadataRepo{}
 
-func (_self *UrlMetadataRepository) CreateUrlMetadata(ctx context.Context, tx *gorm.DB, urlMetadata []*domain.UrlMetadata) error {
+func (_self *UrlMetadataRepo) CreateUrlMetadata(ctx context.Context, tx *gorm.DB, urlMetadata []*domain.UrlMetadata) error {
 	if len(urlMetadata) == 0 {
 		return nil
 	}
-	return tx.Create(&urlMetadata).Error
+	return _self.Inserts(ctx, urlMetadata)
 }
 
-func (_self *UrlMetadataRepository) GetUrlMetadata(ctx context.Context, urlId int64) ([]*domain.UrlMetadata, error) {
-	var resp []*domain.UrlMetadata
-	err := _self.db.WithContext(ctx).Where("url_id = ?", urlId).Find(&resp).Error
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (_self *UrlMetadataRepo) GetUrlMetadata(ctx context.Context, urlId int64) ([]*domain.UrlMetadata, error) {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("url_id = ?", urlId))
+	opts = append(opts, WithOrderBy("id DESC"))
+	return _self.Finds(ctx, opts...)
 }
 
-func (_self *UrlMetadataRepository) GetUrlMetadatas(ctx context.Context, urlIds []int64) ([]*domain.UrlMetadata, error) {
-	var urls []*domain.UrlMetadata
-	err := _self.db.WithContext(ctx).Where("url_id IN ?", urlIds).Find(&urls).Error
-	if err != nil {
-		return nil, err
-	}
-	return urls, nil
+func (_self *UrlMetadataRepo) GetUrlMetadatas(ctx context.Context, urlIds []int64) ([]*domain.UrlMetadata, error) {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("url_id IN ?", urlIds))
+	opts = append(opts, WithOrderBy("id DESC"))
+	return _self.Finds(ctx, opts...)
 }
 
-func (_self *UrlMetadataRepository) UpdateUrlMetadata(ctx context.Context, tx *gorm.DB, urlMetadata []*domain.UrlMetadata) error {
+func (_self *UrlMetadataRepo) UpdateUrlMetadata(ctx context.Context, tx *gorm.DB, urlMetadata []*domain.UrlMetadata) error {
 	if len(urlMetadata) == 0 {
 		return nil
 	}
@@ -108,15 +107,19 @@ func (_self *UrlMetadataRepository) UpdateUrlMetadata(ctx context.Context, tx *g
 	return nil
 }
 
-func (_self *UrlMetadataRepository) UpdateUrlMetadataById(ctx context.Context, tx *gorm.DB, urlMetadata *domain.UrlMetadata) error {
-	return tx.Where("url_id =?", urlMetadata.UrlId).Updates(&urlMetadata).Error
+func (_self *UrlMetadataRepo) UpdateUrlMetadataById(ctx context.Context, tx *gorm.DB, urlMetadata *domain.UrlMetadata) error {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("url_id =?", urlMetadata.Id))
+	return _self.UpdateOnce(ctx, *urlMetadata, opts...)
 }
 
-func (_self *UrlMetadataRepository) DeleteUrlMetadataById(ctx context.Context, tx *gorm.DB, urlId int64) error {
-	return tx.Where("url_id = ?", urlId).Delete(&domain.Url{}).Error
+func (_self *UrlMetadataRepo) DeleteUrlMetadataById(ctx context.Context, tx *gorm.DB, urlId int64) error {
+	var opts []QueryOptionFunc
+	opts = append(opts, WithCondition("url_id =?", urlId))
+	return _self.DeleteById(ctx, domain.UrlMetadata{}, opts...)
 }
 
-func (_self *UrlMetadataRepository) getInsertUpdateMetadata(ctx context.Context, request []*domain.UrlMetadata) ([]*domain.UrlMetadata, []*domain.UrlMetadata, error) {
+func (_self *UrlMetadataRepo) getInsertUpdateMetadata(ctx context.Context, request []*domain.UrlMetadata) ([]*domain.UrlMetadata, []*domain.UrlMetadata, error) {
 	metaDatas, err := _self.GetUrlMetadata(ctx, request[0].UrlId)
 	if err != nil {
 		return nil, nil, err
