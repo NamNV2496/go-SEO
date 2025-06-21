@@ -21,6 +21,9 @@ type IController interface {
 	BuildUrl(c echo.Context, req api.BuildUrlRequest) (*api.BuildUrlResponse, error)
 	ParseUrl(c echo.Context, req api.ParseUrlRequest) (*api.ParseUrlResponse, error)
 	DynamicParamParseByUrl(c echo.Context, req api.DynamicParamRequest) (*api.DynamicParamResponse, error)
+
+	Sitemap(c echo.Context) (string, error)
+	Robots(c echo.Context) (string, error)
 }
 
 type Controller struct {
@@ -156,6 +159,26 @@ func (_self *Controller) DynamicParamParseByUrl(c echo.Context, req api.DynamicP
 	return &api.DynamicParamResponse{
 		Data: dataGroup,
 	}, nil
+}
+
+func (_self *Controller) Sitemap(c echo.Context) (string, error) {
+	return `User-agent: *
+	Allow: /
+	Disallow: /notfound
+	Disallow: /*undefined*
+	Disallow: /register
+	Allow: /
+	`, nil
+}
+
+func (_self *Controller) Robots(c echo.Context) (string, error) {
+	data := `<?xml version="1.0 encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.com/schemas/sitemap/0.9>"
+	<url><loc>abc.com/mua-ban-iphone</loc><lastmod>2025-06-21</lastmod></url>
+	<url><loc>abc.com/mua-ban-iphone-ha-noi</loc><lastmod>2025-06-21</lastmod></url>
+	<url><loc>abc.com/ban-samsung</loc><lastmod>2025-06-21</lastmod></url>
+	</urlset>`
+
+	return data, nil
 }
 
 func requestToMap(req interface{}) map[string]string {

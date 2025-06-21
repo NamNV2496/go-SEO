@@ -18,13 +18,18 @@ func Start(
 	conf := configs.LoadConfig()
 	e := newEchoServer()
 	publicGroup := e.Group("/api/v1/public")
+	// CRUD method
 	publicGroup.POST("/url", wrapReponse(urlController.CreateNewUrl))
 	publicGroup.PUT("/url/:id", wrapReponse(urlController.UpdateUrl))
 	publicGroup.GET("/url", wrapReponse(urlController.GetUrl))
 	publicGroup.GET("/urls", wrapReponse(urlController.GetUrls))
+	// build and parse url
 	publicGroup.POST("/url/build", wrapReponse(urlController.BuildUrl))
 	publicGroup.POST("/url/parse", wrapReponse(urlController.ParseUrl))
 	publicGroup.POST("/url/dynamic_keyword", wrapReponse(urlController.DynamicParamParseByUrl))
+	// sitemap and robots.txt
+	publicGroup.GET("/sitemap", wrapReponse(urlController.Sitemap))
+	publicGroup.GET("/robots.txt", wrapReponse(urlController.Robots))
 
 	if err := e.Start(fmt.Sprintf(":%s", conf.AppPort)); err != nil {
 		e.Logger.Fatal(err)
@@ -45,9 +50,9 @@ func newEchoServer() *echo.Echo {
 func wrapReponse(function any) echo.HandlerFunc {
 	ftype := reflect.TypeOf(function)
 	fval := reflect.ValueOf(function)
-	if ftype.NumIn() != 2 {
-		panic("function must have 2 parameters")
-	}
+	// if ftype.NumIn() != 2 {
+	// 	panic("function must have 2 parameters")
+	// }
 	if fval.Kind() != reflect.Func {
 		panic("function must be a function")
 	}
@@ -56,24 +61,39 @@ func wrapReponse(function any) echo.HandlerFunc {
 
 	return func(c echo.Context) error {
 		// execute function
-		req := reflect.New(ftype.In(1))
-		if err := c.Bind(req.Interface()); err != nil {
-			return err
-		}
-		err := c.Validate(req.Interface())
-		if err != nil {
-			return err
+		// req := reflect.New(ftype.In(1))
+		// if err := c.Bind(req.Interface()); err != nil {
+		// 	return err
+		// }
+		// err := c.Validate(req.Interface())
+		// if err != nil {
+		// 	return err
+		// }
+		// res := fval.Call([]reflect.Value{
+		// 	reflect.ValueOf(c),
+		// 	req.Elem(),
+		// })
+		var args []reflect.Value
+		args = append(args, reflect.ValueOf(c))
+		if ftype.NumIn() > 1 {
+			req := reflect.New(ftype.In(1).Elem())
+			if err := c.Bind(req.Interface()); err != nil {
+				return err
+			}
+			if err := c.Validate(req.Interface()); err != nil {
+				return err
+			}
+			args = append(args, req.Elem())
 		}
 
-		res := fval.Call([]reflect.Value{
-			reflect.ValueOf(c),
-			req.Elem(),
-		})
+		// Call the handler function
+		res := fval.Call(args)
 		if !res[errorIndex].IsNil() {
 			return res[errorIndex].Interface().(error)
 		}
 		resp := c.Response()
 		output := res[0].Interface()
+		slog.Info("output: ", output)
 		return c.JSON(resp.Status, output)
 	}
 }
