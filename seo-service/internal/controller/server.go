@@ -76,11 +76,12 @@ func wrapReponse(function any) echo.HandlerFunc {
 		var args []reflect.Value
 		args = append(args, reflect.ValueOf(c))
 		if ftype.NumIn() > 1 {
-			req := reflect.New(ftype.In(1).Elem())
+			req := reflect.New(ftype.In(1))
 			if err := c.Bind(req.Interface()); err != nil {
 				return err
 			}
-			if err := c.Validate(req.Interface()); err != nil {
+			err := c.Validate(req.Interface())
+			if err != nil {
 				return err
 			}
 			args = append(args, req.Elem())
@@ -89,6 +90,7 @@ func wrapReponse(function any) echo.HandlerFunc {
 		// Call the handler function
 		res := fval.Call(args)
 		if !res[errorIndex].IsNil() {
+			slog.Error("handler error", "error", res[errorIndex].Interface().(error))
 			return res[errorIndex].Interface().(error)
 		}
 		resp := c.Response()

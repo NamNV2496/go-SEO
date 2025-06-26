@@ -3,10 +3,15 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"html/template"
+	"io"
+	"net/http"
 	"regexp"
 	"strings"
 
+	"github.com/namnv2496/seo/configs"
 	"github.com/namnv2496/seo/internal/domain"
 	"github.com/namnv2496/seo/internal/entity"
 	"github.com/namnv2496/seo/internal/repository"
@@ -28,6 +33,7 @@ type IUrlService interface {
 }
 
 type UrlService struct {
+	aiHost          string
 	db              repository.IDatabase
 	urlRepo         repository.IUrlRepo
 	urlMetadataRepo repository.IUrlMetadataRepo
@@ -35,12 +41,14 @@ type UrlService struct {
 }
 
 func NewUrlService(
+	conf *configs.Config,
 	db repository.IDatabase,
 	urlRepo repository.IUrlRepo,
 	urlMetadataRepo repository.IUrlMetadataRepo,
 	shortlinkRepo repository.IShortLinkRepo,
 ) *UrlService {
 	return &UrlService{
+		aiHost:          conf.AIConfig.Host,
 		db:              db,
 		urlRepo:         urlRepo,
 		urlMetadataRepo: urlMetadataRepo,
@@ -81,10 +89,10 @@ func (_self *UrlService) ParseUrl(ctx context.Context, url string) (*entity.Url,
 }
 
 func (_self *UrlService) BuildUrl(ctx context.Context, kind string, request map[string]string) ([]string, error) {
-	// TBU: ==================== Intergrate AI to build ====================
 	switch request["type"] {
 	case "ai":
-		return buildUrlByAI(ctx, kind, request)
+		// TBU: ==================== Intergrate AI to build ====================
+		return _self.buildUrlByAI(ctx, kind, request)
 	case "template":
 		return _self.buildUrlByTemplate(ctx, kind, request)
 	case "regex":
@@ -94,8 +102,72 @@ func (_self *UrlService) BuildUrl(ctx context.Context, kind string, request map[
 	}
 }
 
-func buildUrlByAI(ctx context.Context, kind string, request map[string]string) ([]string, error) {
-	return []string{}, nil
+func (_self *UrlService) buildUrlByAI(ctx context.Context, kind string, request map[string]string) ([]string, error) {
+	data := ""
+	for key, value := range request {
+		data += key + ": " + value + "; "
+	}
+
+	// Prepare messages
+	messages := []entity.Message{
+		{
+			Role:    "user",
+			Content: "You are master SEO",
+		},
+		{
+			Role:    "user",
+			Content: "Use the 'seo_optimization' and 'conten_writing' tools",
+		},
+		{
+			Role:    "user",
+			Content: "Return only the 3 URIs with the highest SEO score for my input data: {data} " + data,
+		},
+		{
+			Role:    "user",
+			Content: "Output the URIs only, one per line, nothing else—no explanation, no formatting",
+		},
+	}
+
+	req := entity.AiSEORequest{
+		Messages:    messages,
+		Temperature: 0.7,
+		MaxTokens:   500,
+	}
+
+	requestJson, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", _self.aiHost, bytes.NewBuffer(requestJson))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("AI service returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	// 3. Read the response (for now, just print or parse as needed)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var result entity.AiSEOResponse
+	json.Unmarshal(respBody, &result)
+	fmt.Println("AI response:", result.Response)
+	urls := strings.Split(result.Response, "\n")[2:]
+
+	return urls, nil
 }
 
 func (_self *UrlService) buildUrlByTemplate(ctx context.Context, kind string, request map[string]string) ([]string, error) {

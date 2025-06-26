@@ -7,6 +7,7 @@ import (
 type Config struct {
 	AppPort        string `env:"APP_PORT" envDefault:"8080"`
 	DatabaseConfig DatabaseConfig
+	AIConfig       AIConfig
 }
 
 type DatabaseConfig struct {
@@ -16,6 +17,10 @@ type DatabaseConfig struct {
 	Password string `env:"DB_PASSWORD" envDefault:"root"`
 	DBName   string `env:"DB_NAME" envDefault:"postgres"`
 	SSLMode  string `env:"DB_SSLMODE" envDefault:"disable"`
+}
+
+type AIConfig struct {
+	Host string `env:"AI_HOST" envDefault:"http://127.0.0.1:8082/chat"`
 }
 
 func LoadConfig() *Config {

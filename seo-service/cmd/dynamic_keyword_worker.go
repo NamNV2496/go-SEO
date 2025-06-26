@@ -12,6 +12,7 @@ import (
 var DynamicKeywordCmd = &cobra.Command{
 	Use:   "dynamic_keyword_worker",
 	Short: "A simple web dynamic keyword worker",
+	Long:  "This worker can run async to update dynamic keyword in real-time. I will develop later",
 	Run: func(cmd *cobra.Command, args []string) {
 		InvokeDynamicKeyword(startDynamicKeyword)
 	},
